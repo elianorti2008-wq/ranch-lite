@@ -1,0 +1,24 @@
+RANCH LITE V3
+Juego web ligero inspirado en simuladores de rancho.
+
+Para jugar:
+- Abre index.html en Chrome, Edge o Firefox.
+- Para publicarlo, sube index.html a un servicio de hosting de páginas estáticas.
+
+Controles:
+WASD/Flechas: caminar
+E: entrar/salir del vehículo
+B: construcción
+1-6: seleccionar construcción
+Clic izquierdo: construir
+P: comprar animal
+F: alimentar
+V: vender productos
+U: mejorar vehículo
+G: mejorar rancho
+K: guardar
+L: cargar
+R: reiniciar
+
+Inicio:
+1 vaca, 1 caballo, 1 burro, 1 gallina, auto básico y $700.

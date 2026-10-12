@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ranch Lite V3</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#87b96b;font-family:Arial,sans-serif;color:#fff}
+#game{display:block;width:100%;height:100%;background:#87b96b;cursor:crosshair}
+#hud{position:fixed;top:12px;left:12px;background:rgba(20,35,20,.82);padding:12px 14px;border-radius:12px;line-height:1.45;font-size:14px;min-width:220px}
+#help{position:fixed;right:12px;top:12px;background:rgba(20,35,20,.82);padding:12px;border-radius:12px;max-width:280px;font-size:13px}
+button{border:0;border-radius:8px;padding:8px 10px;margin:3px;background:#d7e7c4;color:#172317;font-weight:bold;cursor:pointer}
+#msg{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:rgba(20,35,20,.9);padding:10px 16px;border-radius:10px;opacity:0;transition:.2s}
+@media(max-width:700px){#help{display:none}#hud{font-size:12px;min-width:180px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud"></div>
+<div id="help">
+<b>RANCH LITE V3</b><br>
+WASD / flechas: mover<br>
+E: interactuar / comprar<br>
+B: construir<br>
+1-6: edificios<br>
+F: alimentar animales<br>
+V: vender productos<br>
+U: mejorar vehículo<br>
+G: mejorar rancho<br>
+P: comprar animal<br>
+K: guardar partida<br>
+L: cargar partida<br>
+R: reiniciar
+</div>
+<div id="msg"></div>
+<script>
+(()=> {
+const c=document.getElementById('game'),ctx=c.getContext('2d'),hud=document.getElementById('hud'),msg=document.getElementById('msg');
+function resize(){c.width=innerWidth;c.height=innerHeight} addEventListener('resize',resize); resize();
+
+const W=3200,H=2400;
+let keys={},mode="walk",building=null,cam={x:0,y:0},money=700,day=1,hour=8,level=1,vehicle=0,products=0,feed=30;
+let player={x:500,y:1200},car={x:650,y:1280};
+let animals=[
+ {t:"Vaca",x:900,y:900}, {t:"Caballo",x:1300,y:800},
+ {t:"Burro",x:1450,y:850}, {t:"Gallina",x:1000,y:1200}
+];
+let buildings=[
+ {t:"Casa",x:500,y:1100},
+ {t:"Corral",x:850,y:1050},
+ {t:"Establo",x:1250,y:1000},
+ {t:"Gallinero",x:1050,y:1150}
+];
+const costs={Casa:250,Corral:220,Establo:350,Gallinero:180,Bodega:280,Cultivo:70};
+const colors={Casa:"#d8c29d",Corral:"#a8794e",Establo:"#9d5845",Gallinero:"#e2c46c",Bodega:"#888",Cultivo:"#739b42"};
+
+function say(s){msg.textContent=s;msg.style.opacity=1;clearTimeout(say.t);say.t=setTimeout(()=>msg.style.opacity=0,1800)}
+function save(){localStorage.setItem("ranchLiteV3",JSON.stringify({money,day,hour,level,vehicle,products,feed,player,car,animals,buildings}));say("Partida guardada")}
+function load(){let s=localStorage.getItem("ranchLiteV3");if(!s)return say("No hay partida guardada");let d=JSON.parse(s);
+money=d.money;day=d.day;hour=d.hour;level=d.level;vehicle=d.vehicle;products=d.products;feed=d.feed;
+player=d.player;car=d.car;animals=d.animals;buildings=d.buildings;say("Partida cargada")}
+function reset(){location.reload()}
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;let k=e.key.toLowerCase();
+ if(k==="k")save(); if(k==="l")load(); if(k==="r"&&!e.ctrlKey)reset();
+ if(k==="b"){building=building||"Casa";say("Modo construcción: 1-6")}
+ if("123456".includes(e.key)){building=["Casa","Corral","Establo","Gallinero","Bodega","Cultivo"][+e.key-1];say("Seleccionado: "+building)}
+ if(k==="v"&&products>0){money+=products*18;products=0;say("Vendiste productos")}
+ if(k==="p"){let opts=[["Vaca",180],["Caballo",350],["Burro",220],["Gallina",45]],o=opts[Math.floor(Math.random()*opts.length)];if(money>=o[1]){money-=o[1];animals.push({t:o[0],x:player.x+50,y:player.y+50});say("Compraste "+o[0])}else say("No tienes suficiente dinero")}
+ if(k==="f"&&feed>0){feed-=1;products+=2;say("Animales alimentados")}
+ if(k==="u"){let cost=[800,1500][vehicle]||999999;if(vehicle<2&&money>=cost){money-=cost;vehicle++;say("Vehículo mejorado")}else say("Necesitas $"+cost)}
+ if(k==="g"){let cost=[1000,3000,7000][level-1]||999999;if(level<4&&money>=cost){money-=cost;level++;say("Rancho subió a nivel "+level)}else say("Necesitas $"+cost)}
+});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+c.addEventListener('click',e=>{
+ if(!building)return;
+ let x=e.clientX+cam.x,y=e.clientY+cam.y;
+ if(money<(costs[building]||20))return say("Dinero insuficiente");
+ money-=costs[building]||20; buildings.push({t:building,x,y}); building=null; say("Construcción realizada");
+});
+c.addEventListener('contextmenu',e=>e.preventDefault());
+
+function world(){
+ctx.fillStyle="#82b96b";ctx.fillRect(0,0,c.width,c.height);
+ctx.save();ctx.translate(-cam.x,-cam.y);
+ctx.fillStyle="#9bc779";ctx.fillRect(0,0,W,H);
+ctx.fillStyle="#6fa95d";for(let i=0;i<80;i++){let x=(i*347)%W,y=(i*193)%H;ctx.beginPath();ctx.arc(x,y,18,0,7);ctx.fill()}
+ctx.fillStyle="#7eb2c4";ctx.beginPath();ctx.ellipse(2550,520,360,190,0,0,7);ctx.fill();
+ctx.fillStyle="#c9b27b";ctx.fillRect(0,1300,W,100);
+ctx.fillStyle="#888";ctx.fillRect(450,1160,1500,55);
+for(let b of buildings){
+ let col=colors[b.t]||"#999";ctx.fillStyle=col;
+ if(b.t==="Cultivo"){ctx.fillRect(b.x-45,b.y-35,90,70);ctx.strokeStyle="#4c6d2e";for(let j=-30;j<=30;j+=20){ctx.beginPath();ctx.moveTo(b.x+j,b.y-30);ctx.lineTo(b.x+j,b.y+30);ctx.stroke()}}
+ else {ctx.fillRect(b.x-55,b.y-45,110,90);ctx.fillStyle="#333";ctx.fillRect(b.x-12,b.y+5,24,40);ctx.fillStyle="#fff";ctx.font="12px Arial";ctx.fillText(b.t,b.x-35,b.y-55)}
+}
+for(let a of animals){ctx.fillStyle=a.t==="Vaca"?"#fff":a.t==="Caballo"?"#70452e":a.t==="Burro"?"#777":"#f2e4b5";ctx.beginPath();ctx.ellipse(a.x,a.y,30,20,0,0,7);ctx.fill();ctx.fillStyle="#222";ctx.font="11px Arial";ctx.fillText(a.t,a.x-25,a.y-28)}
+ctx.fillStyle=vehicle===0?"#d9534f":vehicle===1?"#e5c04b":"#777";ctx.fillRect(car.x-35,car.y-20,70,40);ctx.fillStyle="#b9d7e8";ctx.fillRect(car.x-22,car.y-14,18,12);ctx.fillRect(car.x+5,car.y-14,18,12);
+ctx.fillStyle="#333";ctx.beginPath();ctx.arc(car.x-22,car.y+21,9,0,7);ctx.arc(car.x+22,car.y+21,9,0,7);ctx.fill();
+ctx.fillStyle="#214d27";ctx.beginPath();ctx.arc(player.x,player.y,18,0,7);ctx.fill();ctx.fillStyle="#fff";ctx.font="12px Arial";ctx.fillText(mode==="drive"?"CONDUCIENDO":"TÚ",player.x-22,player.y-25);
+ctx.restore();
+}
+function update(){
+ let sp=mode==="drive"?6:3;
+ let dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0);
+ let obj=mode==="drive"?car:player;
+ obj.x=Math.max(30,Math.min(W-30,obj.x+dx*sp));obj.y=Math.max(30,Math.min(H-30,obj.y+dy*sp));
+ if(mode==="walk"){if(Math.hypot(player.x-car.x,player.y-car.y)<55 && keys.e){mode="drive";say("Ahora conduces. Pulsa E para bajar")}}
+ if(mode==="drive"&&keys.e){mode="walk";player.x=car.x+55;player.y=car.y;say("Bajaste del vehículo")}
+ if(mode==="walk"&&keys.e&&building){building=null}
+ if(mode==="walk"&&keys.e){let near=buildings.some(b=>Math.hypot(b.x-player.x,b.y-player.y)<90);if(near)say("Estás en tu rancho")}
+ if(mode==="drive")player.x=car.x,player.y=car.y;
+ cam.x=Math.max(0,Math.min(W-c.width,player.x-c.width/2));cam.y=Math.max(0,Math.min(H-c.height,player.y-c.height/2));
+ hour+=.006;if(hour>=24){hour=0;day++;money+=animals.length*2;products+=animals.filter(a=>a.t==="Vaca").length;feed=Math.min(100,feed+10)}
+}
+function drawHud(){hud.innerHTML=`<b>🌾 Ranch Lite V3</b><br>💰 $${Math.floor(money)}<br>📅 Día ${day} · ${String(Math.floor(hour)).padStart(2,"0")}:00<br>🐄 Animales: ${animals.length}<br>📦 Productos: ${products}<br>🌾 Alimento: ${feed}<br>🏡 Nivel: ${level}/4<br>🚗 Vehículo: ${["Básico","Mejorado","Trabajo"][vehicle]}<br><button onclick="save()">Guardar</button><button onclick="load()">Cargar</button>`}
+function loop(){update();world();drawHud();requestAnimationFrame(loop)} loop();
+})();
+</script>
+</body></html>
